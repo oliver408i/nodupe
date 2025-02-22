@@ -1,0 +1,37 @@
+name: NoDupe
+version: 1.0.0
+author: nitrogendioxide
+main: dev.nitrogendioxide.nodupe.NoDupePlugin
+description: Prevents players from having duplicate items in their inventory
+api-versionn: 1.20.1
+
+commands:
+  checkitem:
+    description: Checks the unique ID and vulnerability of the item you are holding.
+    usage: /checkitem
+    permission: nodupe.checkitem
+    permission-message: You don't have permission to use this command.
+  simdupe:
+    description: Simulates duplicating the item you are holding.
+    usage: /simdupe
+    permission: nodupe.simdupe
+    permission-message: You don't have permission to use this command.
+  nodupe:
+    description: NoDupePlugin commands.
+    usage: /nodupe <reload>
+    permission: nodupe.admin
+    permission-message: You don't have permission to use this command.
+
+permissions:
+  nodupe.notify:
+    description: Receive notifications about duplicate items.
+    default: op
+  nodupe.checkitem:
+    description: Allows using the /checkitem command.
+    default: true
+  nodupe.simdupe:
+    description: Allows using the /simdupe command.
+    default: op
+  nodupe.admin:
+    description: Allows using NoDupePlugin administrative commands.
+    default: op
