@@ -1,6 +1,8 @@
 package dev.nitrogendioxide.nodupe;
 
 import org.bukkit.plugin.java.JavaPlugin;
+import dev.nitrogendioxide.nodupe.commands.CheckItemCommand;
+import dev.nitrogendioxide.nodupe.listeners.AnvilEditPrevention;
 
 public class NoDupePlugin extends JavaPlugin {
     private static NoDupePlugin instance;
