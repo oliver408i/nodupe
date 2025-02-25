@@ -9,8 +9,10 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 
 public class CheckItemCommand implements CommandExecutor {
 
@@ -36,14 +38,13 @@ public class CheckItemCommand implements CommandExecutor {
             return true;
         }
 
-        // Compare unique ID from lore
+        // Ensure both items have a unique ID
+        ensureItemHasID(mainHandItem);
+        ensureItemHasID(offHandItem);
+
+        // Retrieve unique IDs after ensuring they exist
         String mainID = getItemID(mainHandItem);
         String offID = getItemID(offHandItem);
-
-        if (mainID == null || offID == null) {
-            player.sendMessage(ChatColor.RED + "One or both items are missing a unique identifier.");
-            return true;
-        }
 
         if (!Objects.equals(mainID, offID)) {
             player.sendMessage(ChatColor.RED + "The items are different (unique IDs do not match).");
@@ -60,12 +61,29 @@ public class CheckItemCommand implements CommandExecutor {
         if (meta == null || !meta.hasLore()) return null;
 
         List<String> lore = meta.getLore();
-        if (lore == null) return null;
+        if (lore == null || lore.isEmpty()) return null;
 
-        return lore.stream()
-                .filter(line -> line.startsWith(ChatColor.DARK_GRAY + "ID: "))
-                .map(line -> line.replace(ChatColor.DARK_GRAY + "ID: ", ""))
-                .findFirst()
-                .orElse(null);
+        // ID should always be the last line, with a blank line above it
+        return lore.get(lore.size() - 1).startsWith(ChatColor.GRAY.toString()) ? lore.get(lore.size() - 1) : null;
+    }
+
+    private void ensureItemHasID(ItemStack item) {
+        if (item == null || item.getType().isAir()) return;
+
+        ItemMeta meta = item.getItemMeta();
+        List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
+
+        // If no ID exists, add a properly formatted one
+        boolean hasID = !lore.isEmpty() && lore.get(lore.size() - 1).startsWith(ChatColor.GRAY.toString());
+
+        if (!hasID) {
+            if (!lore.isEmpty()) {
+                lore.add(""); // Add a blank line if there is existing lore
+            }
+            lore.add(ChatColor.GRAY.toString() + ChatColor.ITALIC + "ID: " + UUID.randomUUID());
+
+            meta.setLore(lore);
+            item.setItemMeta(meta);
+        }
     }
 }

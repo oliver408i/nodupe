@@ -4,8 +4,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import dev.nitrogendioxide.nodupe.commands.CheckItemCommand;
 import dev.nitrogendioxide.nodupe.commands.NoDupeCommand;
 import dev.nitrogendioxide.nodupe.listeners.AnvilEditPrevention;
-import dev.nitrogendioxide.nodupe.listeners.CreativeItemListener;
-import dev.nitrogendioxide.nodupe.listeners.SurvivalItemListener;
+import dev.nitrogendioxide.nodupe.listeners.InventoryCheckTask;
 
 public class NoDupePlugin extends JavaPlugin {
     private static NoDupePlugin instance;
@@ -24,8 +23,7 @@ public class NoDupePlugin extends JavaPlugin {
         this.getCommand("nodupe").setExecutor(new NoDupeCommand());
 
         getServer().getPluginManager().registerEvents(new AnvilEditPrevention(), this);
-        getServer().getPluginManager().registerEvents(new CreativeItemListener(), this);
-        getServer().getPluginManager().registerEvents(new SurvivalItemListener(), this);
+        new InventoryCheckTask(this).runTaskTimer(this, 100L, 100L);
 
         getLogger().info("NoDupe Plugin Enabled!");
 }
