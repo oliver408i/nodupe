@@ -1,6 +1,6 @@
 name: NoDupe
-version: 1.0.1
-author: NitrogenDioxide (main), MaxwellRose1019 (edits)
+version: 1.0.2
+author: NitrogenDioxide (author), MaxwellRose1019 (contributor)
 main: dev.nitrogendioxide.nodupe.NoDupePlugin
 description: Prevents players from having duplicate items in their inventory
 api-version: 1.13
