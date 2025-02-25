@@ -6,12 +6,11 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.scheduler.BukkitRunnable;
+import dev.nitrogendioxide.nodupe.NoDupePlugin;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-
-import dev.nitrogendioxide.nodupe.NoDupePlugin;
 
 public class InventoryCheckTask extends BukkitRunnable {
 
@@ -25,26 +24,22 @@ public class InventoryCheckTask extends BukkitRunnable {
     public void run() {
         for (Player player : Bukkit.getOnlinePlayers()) {
             for (ItemStack item : player.getInventory().getContents()) {
-                if (item != null && item.hasItemMeta()) {
-                    ItemMeta meta = item.getItemMeta();
-                    List<String> lore = meta.hasLore() ? meta.getLore() : new ArrayList<>();
+                if (item == null || !item.getType().isItem()) continue;
 
-                    // Check if the last line contains an ID
-                    boolean hasID = lore.size() >= 2 && lore.get(lore.size() - 1).startsWith(ChatColor.GRAY.toString());
+                ItemMeta meta = item.getItemMeta();
+                if (meta == null) continue;
 
-                    if (!hasID) {
-                        // Ensure proper spacing: add a blank line if there's existing lore
-                        if (!lore.isEmpty()) {
-                            lore.add(""); // Add a blank line
-                        }
+                List<String> lore = meta.hasLore() ? meta.getLore() : new ArrayList<>();
 
-                        // Add the new unique ID
-                        lore.add(ChatColor.GRAY.toString() + ChatColor.ITALIC + "ID: " + UUID.randomUUID());
+                boolean hasID = lore.stream().anyMatch(line -> line.startsWith(ChatColor.GRAY + "" + ChatColor.ITALIC + "ID: "));
 
-                        // Update the item's meta
-                        meta.setLore(lore);
-                        item.setItemMeta(meta);
-                    }
+                if (!hasID) {
+                    // Ensure a blank line before the ID
+                    if (!lore.isEmpty()) lore.add("");
+
+                    lore.add(ChatColor.GRAY + "" + ChatColor.ITALIC + "ID: " + UUID.randomUUID());
+                    meta.setLore(lore);
+                    item.setItemMeta(meta);
                 }
             }
         }
