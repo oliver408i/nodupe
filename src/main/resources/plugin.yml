@@ -3,7 +3,7 @@ version: 1.0.1
 author: NitrogenDioxide (main), MaxwellRose1019 (edits)
 main: dev.nitrogendioxide.nodupe.NoDupePlugin
 description: Prevents players from having duplicate items in their inventory
-api-versionn: 1.20.1
+api-version: 1.13
 
 commands:
   checkitem:

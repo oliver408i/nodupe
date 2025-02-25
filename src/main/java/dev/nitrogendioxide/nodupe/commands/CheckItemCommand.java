@@ -1,44 +1,71 @@
 package dev.nitrogendioxide.nodupe.commands;
 
-import dev.nitrogendioxide.nodupe.ItemTracker;
 import org.bukkit.ChatColor;
+import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+
+import java.util.List;
+import java.util.Objects;
 
 public class CheckItemCommand implements CommandExecutor {
+
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player)) {
-            sender.sendMessage(ChatColor.RED + "Only players can use this command.");
+            sender.sendMessage(ChatColor.RED + "Only players can use this command!");
             return true;
         }
 
         Player player = (Player) sender;
-        ItemStack mainHand = player.getInventory().getItemInMainHand();
-        ItemStack offHand = player.getInventory().getItemInOffHand();
+        ItemStack mainHandItem = player.getInventory().getItemInMainHand();
+        ItemStack offHandItem = player.getInventory().getItemInOffHand();
 
-        if (mainHand == null || offHand == null || mainHand.getType().isAir() || offHand.getType().isAir()) {
-            player.sendMessage(ChatColor.RED + "You need two items to compare.");
+        if (mainHandItem.getType() == Material.AIR || offHandItem.getType() == Material.AIR) {
+            player.sendMessage(ChatColor.RED + "You must hold an item in both your main hand and offhand to compare!");
             return true;
         }
 
-        if (!ItemTracker.hasUniqueID(mainHand) || !ItemTracker.hasUniqueID(offHand)) {
-            player.sendMessage(ChatColor.RED + "One or both items lack a unique ID.");
+        // Compare item types
+        if (mainHandItem.getType() != offHandItem.getType()) {
+            player.sendMessage(ChatColor.RED + "The items are not the same type.");
             return true;
         }
 
-        String mainID = ItemTracker.getUniqueID(mainHand);
-        String offID = ItemTracker.getUniqueID(offHand);
+        // Compare unique ID from lore
+        String mainID = getItemID(mainHandItem);
+        String offID = getItemID(offHandItem);
 
-        if (mainID.equals(offID)) {
-            player.sendMessage(ChatColor.GREEN + "These items have the same unique ID.");
-        } else {
-            player.sendMessage(ChatColor.RED + "These items have different unique IDs.");
+        if (mainID == null || offID == null) {
+            player.sendMessage(ChatColor.RED + "One or both items are missing a unique identifier.");
+            return true;
         }
 
+        if (!Objects.equals(mainID, offID)) {
+            player.sendMessage(ChatColor.RED + "The items are different (unique IDs do not match).");
+            return true;
+        }
+
+        player.sendMessage(ChatColor.GREEN + "The items are identical!");
         return true;
+    }
+
+    private String getItemID(ItemStack item) {
+        if (item == null || item.getType().isAir()) return null;
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null || !meta.hasLore()) return null;
+
+        List<String> lore = meta.getLore();
+        if (lore == null) return null;
+
+        return lore.stream()
+                .filter(line -> line.startsWith(ChatColor.DARK_GRAY + "ID: "))
+                .map(line -> line.replace(ChatColor.DARK_GRAY + "ID: ", ""))
+                .findFirst()
+                .orElse(null);
     }
 }
