@@ -32,3 +32,19 @@ remove-duplicates: false
 
 # Enable or disable the /simdupe command. Should only be enabled for testing!
 enable-simdupe: false
+
+# Estimated number of concurrent players on the server
+estimated-concurrent-players: 30
+
+# Minimum and maximum interval for inventory checks (in seconds)
+min-inventory-check-interval: 30
+max-inventory-check-interval: 120
+
+# Scan container blocks for duplicate items
+scan-containers: true
+
+# Notify staff with permission "nodupe.alerts" when duplicate items are found
+enable-duplicate-alerts: true
+
+# Log duplicate alerts to "dupe-alerts.log"
+log-duplicate-alerts: true
