@@ -1,11 +1,16 @@
 name: NoDupe
-version: 1.0.3
-author: NitrogenDioxide (author), MaxwellRose1019 (contributor)
+version: 1.1.0
+author: NitrogenDioxide, MaxwellRose1019
 main: dev.nitrogendioxide.nodupe.NoDupePlugin
 description: Prevents players from having duplicate items in their inventory
 api-version: 1.13
 
 commands:
+  nodupe:
+    description: Displays the NoDupe help menu.
+    usage: /nodupe
+    permission: nodupe.admin
+    permission-message: You don't have permission to use this command.
   checkitem:
     description: Checks the unique ID and vulnerability of the item you are holding.
     usage: /checkitem
@@ -15,11 +20,6 @@ commands:
     description: Simulates duplicating the item you are holding.
     usage: /simdupe
     permission: nodupe.simdupe
-    permission-message: You don't have permission to use this command.
-  nodupe:
-    description: NoDupePlugin commands.
-    usage: /nodupe <reload>
-    permission: nodupe.admin
     permission-message: You don't have permission to use this command.
 
 permissions:

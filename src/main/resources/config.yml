@@ -1,8 +1,9 @@
-# Configuration for NoDupePlugin
+# Configuration for NoDupe plugin
 
 # List of high-vulnerability items (by Material name)
-# Example: SHULKER_BOX, BLACK_SHULKER_BOX, etc.
+# These items will receive unique IDs to prevent duplication
 high-vulnerability-items:
+  # Storage containers
   - SHULKER_BOX
   - WHITE_SHULKER_BOX
   - ORANGE_SHULKER_BOX
@@ -20,6 +21,49 @@ high-vulnerability-items:
   - GREEN_SHULKER_BOX
   - RED_SHULKER_BOX
   - BLACK_SHULKER_BOX
+  - BUNDLE
+  
+  # Tools & weapons
+  - WOODEN_SWORD
+  - STONE_SWORD
+  - IRON_SWORD
+  - GOLDEN_SWORD
+  - DIAMOND_SWORD
+  - NETHERITE_SWORD
+  - WOODEN_PICKAXE
+  - STONE_PICKAXE
+  - IRON_PICKAXE
+  - GOLDEN_PICKAXE
+  - DIAMOND_PICKAXE
+  - NETHERITE_PICKAXE
+  - WOODEN_AXE
+  - STONE_AXE
+  - IRON_AXE
+  - GOLDEN_AXE
+  - DIAMOND_AXE
+  - NETHERITE_AXE
+  - WOODEN_SHOVEL
+  - STONE_SHOVEL
+  - IRON_SHOVEL
+  - GOLDEN_SHOVEL
+  - DIAMOND_SHOVEL
+  - NETHERITE_SHOVEL
+  - WOODEN_HOE
+  - STONE_HOE
+  - IRON_HOE
+  - GOLDEN_HOE
+  - DIAMOND_HOE
+  - NETHERITE_HOE
+  - BOW
+  - CROSSBOW
+  - TRIDENT
+  - FISHING_ROD
+  - SHEARS
+  - FLINT_AND_STEEL
+
+  # Other non-stackable items
+  - TOTEM_OF_UNDYING
+  - ELYTRA
 
 # Enable or disable debug logging
 debug: false
