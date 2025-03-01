@@ -20,7 +20,6 @@ public class InventoryCheckTask extends BukkitRunnable {
 
     private final NoDupePlugin plugin;
     private final NamespacedKey idKey;
-    private final Map<Location, String> containerIDMap = new HashMap<>(); // Store container IDs
 
     public InventoryCheckTask(NoDupePlugin plugin) {
         this.plugin = plugin;
@@ -129,12 +128,9 @@ public class InventoryCheckTask extends BukkitRunnable {
                 for (BlockState tile : chunk.getTileEntities()) {
                     if (tile instanceof Container) {
                         Container container = (Container) tile;
-                        Location loc = container.getBlock().getLocation();
-                        String id = containerIDMap.getOrDefault(loc, UUID.randomUUID().toString());
-                        containerIDMap.put(loc, id); // Ensure ID persists
-
+                        String location = container.getBlock().getLocation().toVector().toString();
                         checkAndAssignID(container.getInventory().getContents());
-                        checkForDuplicates("Container at " + loc.toVector().toString(), container.getInventory().getContents(), "Container", duplicateMap);
+                        checkForDuplicates("Container at " + location, container.getInventory().getContents(), "Container", duplicateMap);
                     }
                 }
             }
@@ -191,6 +187,10 @@ public class InventoryCheckTask extends BukkitRunnable {
         if (meta == null) return null;
 
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
-        return pdc.get(idKey, PersistentDataType.STRING);
+        if (pdc.has(idKey, PersistentDataType.STRING)) {
+            return pdc.get(idKey, PersistentDataType.STRING);
+        }
+
+        return null;
     }
 }
