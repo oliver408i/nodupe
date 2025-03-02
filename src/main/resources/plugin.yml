@@ -16,22 +16,15 @@ commands:
     usage: /checkitem
     permission: nodupe.checkitem
     permission-message: You don't have permission to use this command.
-  simdupe:
-    description: Simulates duplicating the item you are holding.
-    usage: /simdupe
-    permission: nodupe.simdupe
-    permission-message: You don't have permission to use this command.
 
 permissions:
+  nodupe.admin:
+    description: Allows using NoDupePlugin administrative commands.
+    default: op
   nodupe.notify:
     description: Receive notifications about duplicate items.
     default: op
   nodupe.checkitem:
     description: Allows using the /checkitem command.
     default: true
-  nodupe.simdupe:
-    description: Allows using the /simdupe command.
-    default: op
-  nodupe.admin:
-    description: Allows using NoDupePlugin administrative commands.
-    default: op
+    
