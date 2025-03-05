@@ -92,3 +92,6 @@ enable-duplicate-alerts: true
 
 # Log duplicate alerts to "dupe-alerts.log"
 log-duplicate-alerts: true
+
+# Automatically removed duplicated items detected
+remove-duplicates: true

@@ -4,13 +4,16 @@ import org.bukkit.*;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.Container;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BundleMeta;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitRunnable;
+
 import dev.nitrogendioxide.nodupe.NoDupePlugin;
+import dev.nitrogendioxide.nodupe.utils.DuplicateChecker;
 
 import java.io.*;
 import java.time.Instant;
@@ -19,10 +22,12 @@ import java.util.*;
 public class InventoryCheckTask extends BukkitRunnable {
 
     private final NoDupePlugin plugin;
+    private final DuplicateChecker duplicateChecker;
     private final NamespacedKey idKey;
 
-    public InventoryCheckTask(NoDupePlugin plugin) {
+    public InventoryCheckTask(NoDupePlugin plugin, DuplicateChecker duplicateChecker) {
         this.plugin = plugin;
+        this.duplicateChecker = duplicateChecker;
         this.idKey = new NamespacedKey(plugin, "item_id");
     }
 
@@ -37,20 +42,21 @@ public class InventoryCheckTask extends BukkitRunnable {
         boolean logAlerts = plugin.getConfig().getBoolean("log-duplicate-alerts", true);
 
         int interval = Math.min(maxInterval, Math.max(minInterval, maxInterval - (playerCount * 4)));
-        new InventoryCheckTask(plugin).runTaskLater(plugin, interval * 20L);
+        new InventoryCheckTask(plugin, duplicateChecker).runTaskLater(plugin, interval * 20L);
 
+        boolean removeDuplicates = plugin.getConfig().getBoolean("remove-duplicates", false);
         Map<String, List<String>> duplicateMap = new HashMap<>();
 
         for (Player player : Bukkit.getOnlinePlayers()) {
             checkAndAssignID(player.getInventory().getContents());
             checkAndAssignID(player.getEnderChest().getContents());
 
-            checkForDuplicates(player.getName(), player.getInventory().getContents(), "Inventory", duplicateMap);
-            checkForDuplicates(player.getName(), player.getEnderChest().getContents(), "EnderChest", duplicateMap);
+            checkForDuplicates(player.getName(), player.getInventory(), "Inventory", duplicateMap, removeDuplicates);
+            checkForDuplicates(player.getName(), player.getEnderChest(), "EnderChest", duplicateMap, removeDuplicates);
         }
 
         if (scanContainers) {
-            scanLoadedChunksForContainers(duplicateMap);
+            scanLoadedChunksForContainers(duplicateMap, removeDuplicates);
         }
 
         if (!duplicateMap.isEmpty() && enableAlerts) {
@@ -58,27 +64,41 @@ public class InventoryCheckTask extends BukkitRunnable {
         }
     }
 
-    private void checkForDuplicates(String owner, ItemStack[] contents, String location, Map<String, List<String>> duplicateMap) {
-        Map<String, ItemStack> idMap = new HashMap<>();
+    private void checkForDuplicates(String owner, Inventory inventory, String location, Map<String, List<String>> duplicateMap, boolean removeDuplicates) {
+        ItemStack[] contents = inventory.getContents();
+        Map<String, Integer> idCountMap = new HashMap<>();
+        Map<String, List<Integer>> idSlotMap = new HashMap<>();
+        Map<String, Material> idTypeMap = new HashMap<>();
 
-        for (ItemStack item : contents) {
+        for (int i = 0; i < contents.length; i++) {
+            ItemStack item = contents[i];
             if (item == null || item.getType() == Material.AIR) continue;
 
             String id = getItemID(item);
             if (id == null) continue;
 
-            if (idMap.containsKey(id)) {
-                duplicateMap.computeIfAbsent(id, k -> new ArrayList<>())
-                            .add(location + " - " + owner + " (" + item.getType() + ")");
-            } else {
-                idMap.put(id, item);
-            }
+            idCountMap.put(id, idCountMap.getOrDefault(id, 0) + 1);
+            idSlotMap.computeIfAbsent(id, k -> new ArrayList<>()).add(i);
+            idTypeMap.putIfAbsent(id, item.getType());
+        }
 
-            if (item.getType() == Material.BUNDLE) {
-                BundleMeta bundleMeta = (BundleMeta) item.getItemMeta();
-                if (bundleMeta != null && bundleMeta.hasItems()) {
-                    checkForDuplicates(owner, bundleMeta.getItems().toArray(new ItemStack[0]), location + " (Bundle)", duplicateMap);
+        for (Map.Entry<String, Integer> entry : idCountMap.entrySet()) {
+            String id = entry.getKey();
+            int count = entry.getValue();
+            if (count > 1) {
+                List<Integer> slots = idSlotMap.get(id);
+                Material itemType = idTypeMap.get(id);
+
+                if (removeDuplicates) {
+                    for (int i = 1; i < slots.size(); i++) {
+                        contents[slots.get(i)] = null;
+                    }
+                    inventory.setContents(contents); // Apply the change to the inventory
                 }
+
+                String alertMessage = ChatColor.YELLOW + "Item: " + ChatColor.WHITE + itemType.name() +
+                                      ChatColor.YELLOW + " | ID: " + ChatColor.WHITE + id;
+                duplicateMap.computeIfAbsent(alertMessage, k -> new ArrayList<>()).add(location + " - " + owner);
             }
         }
     }
@@ -122,7 +142,7 @@ public class InventoryCheckTask extends BukkitRunnable {
         }
     }
 
-    private void scanLoadedChunksForContainers(Map<String, List<String>> duplicateMap) {
+    private void scanLoadedChunksForContainers(Map<String, List<String>> duplicateMap, boolean removeDuplicates) {
         for (World world : Bukkit.getWorlds()) {
             for (Chunk chunk : world.getLoadedChunks()) {
                 for (BlockState tile : chunk.getTileEntities()) {
@@ -130,7 +150,7 @@ public class InventoryCheckTask extends BukkitRunnable {
                         Container container = (Container) tile;
                         String location = container.getBlock().getLocation().toVector().toString();
                         checkAndAssignID(container.getInventory().getContents());
-                        checkForDuplicates("Container at " + location, container.getInventory().getContents(), "Container", duplicateMap);
+                        checkForDuplicates("Container at " + location, container.getInventory(), "Container", duplicateMap, removeDuplicates);
                     }
                 }
             }
@@ -147,10 +167,8 @@ public class InventoryCheckTask extends BukkitRunnable {
         for (Map.Entry<String, List<String>> entry : duplicateMap.entrySet()) {
             String id = entry.getKey();
             List<String> locations = entry.getValue();
-            String itemType = locations.get(0).split("\\(")[1].replace(")", "").trim();
 
-            alertMessage.append(ChatColor.YELLOW).append("Item: ").append(ChatColor.WHITE).append(itemType)
-                        .append(ChatColor.YELLOW).append(" | ID: ").append(ChatColor.WHITE).append(id).append("\n");
+            alertMessage.append(ChatColor.YELLOW).append("ID: ").append(ChatColor.WHITE).append(id).append("\n");
 
             for (String location : locations) {
                 alertMessage.append(ChatColor.GRAY).append(" - ").append(location).append("\n");
@@ -187,10 +205,6 @@ public class InventoryCheckTask extends BukkitRunnable {
         if (meta == null) return null;
 
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
-        if (pdc.has(idKey, PersistentDataType.STRING)) {
-            return pdc.get(idKey, PersistentDataType.STRING);
-        }
-
-        return null;
+        return pdc.get(idKey, PersistentDataType.STRING);
     }
 }
