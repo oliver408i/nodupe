@@ -1,5 +1,5 @@
 name: NoDupe
-version: 1.0.0
+version: 2.0
 author: nitrogendioxide
 main: dev.nitrogendioxide.nodupe.NoDupePlugin
 description: Prevents players from having duplicate items in their inventory
@@ -28,7 +28,7 @@ permissions:
     default: op
   nodupe.checkitem:
     description: Allows using the /checkitem command.
-    default: true
+    default: op
   nodupe.simdupe:
     description: Allows using the /simdupe command.
     default: op

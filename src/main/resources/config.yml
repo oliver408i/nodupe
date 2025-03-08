@@ -20,6 +20,7 @@ high-vulnerability-items:
   - GREEN_SHULKER_BOX
   - RED_SHULKER_BOX
   - BLACK_SHULKER_BOX
+  - MOB_SPAWNER
 
 # Enable or disable debug logging
 debug: false
@@ -28,7 +29,21 @@ debug: false
 notify-player: false
 
 # Automatically remove duplicated items when detected
-remove-duplicates: false
+remove-duplicates: true
 
 # Enable or disable the /simdupe command. Should only be enabled for testing!
 enable-simdupe: false
+
+
+# List of blacklisted items that should be automatically removed from player inventories
+blacklisted-items:
+  - BEDROCK
+  - COMMAND
+  - COMMAND_BLOCK_MINECART
+  - STRUCTURE_BLOCK
+  - BARRIER
+
+blacklisted-metadata:
+  MOB_SPAWNER:
+    entity: 
+      - "minecraft:ender_dragon"

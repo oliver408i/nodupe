@@ -25,6 +25,11 @@ public class CheckItemCommand implements CommandExecutor {
         Player player = (Player) sender;
         ItemStack item = player.getInventory().getItem(player.getInventory().getHeldItemSlot());
 
+        if (item == null) {
+            sender.sendMessage(ChatColor.YELLOW + "You are not holding any item.");
+            return true;
+        }
+
         NoDupePlugin.getInstance().getLogger().fine("Player " + player.getName() + " is checking item " + item.getType());
 
         if (item.getType().isAir()) {
