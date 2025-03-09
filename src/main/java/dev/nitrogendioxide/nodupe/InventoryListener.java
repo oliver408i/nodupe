@@ -37,6 +37,17 @@ public class InventoryListener implements Listener {
     private static final File dataFolder = NoDupePlugin.getInstance().getDataFolder();
     private static final File violationLogFile = new File(dataFolder, "violations.log");
 
+    public static final Map<Player, Boolean> adminNotificationPreferences = new HashMap<>();
+
+    private void notifyAdmins(String message) {
+        for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
+            if (onlinePlayer.hasPermission("nodupe.notify") &&
+                adminNotificationPreferences.getOrDefault(onlinePlayer, true)) {
+                onlinePlayer.sendMessage(ChatColor.YELLOW + "[NoDupe] " + ChatColor.RED + message);
+            }
+        }
+    }
+
     /*@EventHandler
     public void onInventoryOpen(InventoryOpenEvent event) {
         HumanEntity human = event.getPlayer();
@@ -66,11 +77,12 @@ public class InventoryListener implements Listener {
         // If the cursor item (item being placed) is blacklisted, remove it
         if (cursorItem != null && isBlacklisted(cursorItem)) {
             event.setCursor(null);
-            logger.info("Removed blacklisted item " + cursorItem.getType() + " from player " + player.getName() +
+            logger.warning("Removed blacklisted item " + cursorItem.getType() + " from player " + player.getName() +
                         " while attempting to move it.");
             logViolation(player.getName(), null, cursorItem.getType().toString(),
                          "Cursor (moving item)", "N/A", "Blacklisted Item Removal");
-            player.sendMessage(ChatColor.RED + "Blacklisted items have been removed from your inventory.");
+            if (NoDupePlugin.getInstance().getConfig().getBoolean("notify-player", false))
+                player.sendMessage(ChatColor.RED + "Blacklisted items have been removed from your inventory.");
             event.setCancelled(true);
             return;
         }
@@ -93,18 +105,28 @@ public class InventoryListener implements Listener {
         Item itemEntity = event.getItem();
         ItemStack itemStack = itemEntity.getItemStack();
 
-        logger.debug("Player " + player.getName() + " is picking up item " + itemStack.getType());
-
-        if (isBlacklisted(itemStack)) {
+    logger.debug("Player " + player.getName() + " is picking up item " + itemStack.getType());
+    
+    boolean removalEnabled = NoDupePlugin.getInstance().getConfig().getBoolean("remove-blacklisted-items", true);
+    
+    if (isBlacklisted(itemStack)) {
+        logViolation(player.getName(), null, itemStack.getType().toString(),
+                     "Ground Item", "N/A", "Blacklisted Item Pickup Prevention");
+        
+        if (removalEnabled) {
             event.setCancelled(true);
             itemEntity.remove();
             logger.info("Removed blacklisted item " + itemStack.getType() + " from ground before pickup by " + player.getName());
-            logViolation(player.getName(), null, itemStack.getType().toString(),
-                         "Ground Item", "N/A", "Blacklisted Item Pickup Prevention");
-            if (NoDupePlugin.getInstance().getConfig().getBoolean("notify-player", false))
-                player.sendMessage(ChatColor.RED + "Blacklisted items cannot be picked up.");
-            return;
         }
+        
+        if (NoDupePlugin.getInstance().getConfig().getBoolean("notify-player", false)) {
+            player.sendMessage(removalEnabled
+                ? ChatColor.RED + "Blacklisted items have been removed from the ground."
+                : ChatColor.YELLOW + "Warning: Blacklisted item detected on pickup but not removed.");
+        }
+        
+        return;
+    }
         // Process the item being picked up
         processItem(itemStack, player, "Picked Up Item");
  
@@ -121,13 +143,30 @@ public class InventoryListener implements Listener {
         ItemStack itemStack = itemEntity.getItemStack();
 
         logger.debug("Player " + player.getName() + " dropped item " + itemStack.getType());
-
-        // Remove blacklisted items
-        removeBlacklistedItems(player);
-
+        
+        boolean removalEnabled = NoDupePlugin.getInstance().getConfig().getBoolean("remove-blacklisted-items", true);
+        
+        if (isBlacklisted(itemStack)) {
+            logViolation(player.getName(), null, itemStack.getType().toString(),
+                        "Dropped Item", "N/A", "Blacklisted Item Drop Prevention");
+            
+            if (removalEnabled) {
+                itemEntity.remove();
+                logger.info("Removed blacklisted item " + itemStack.getType() + " after being dropped by " + player.getName());
+            }
+            
+            if (NoDupePlugin.getInstance().getConfig().getBoolean("notify-player", false)) {
+                player.sendMessage(removalEnabled
+                    ? ChatColor.RED + "Blacklisted items have been removed after being dropped."
+                    : ChatColor.YELLOW + "Warning: Blacklisted item detected on drop but not removed.");
+            }
+            
+            return;
+        }
+        
         // Process the item being dropped
         processItem(itemStack, player, "Dropped Item");
-
+        
         // Schedule duplicate check
         Bukkit.getScheduler().runTaskLater(NoDupePlugin.getInstance(), () -> {
             checkForDuplicatesInInventory(player);
@@ -138,6 +177,7 @@ public class InventoryListener implements Listener {
         if (blacklistedItems.isEmpty() && blacklistedMetadata.isEmpty()) {
             return;
         }
+        boolean removalEnabled = NoDupePlugin.getInstance().getConfig().getBoolean("remove-blacklisted-items", true);
 
         ItemStack[] items = player.getInventory().getContents();
         boolean removed = false;
@@ -145,17 +185,27 @@ public class InventoryListener implements Listener {
         for (int slot = 0; slot < items.length; slot++) {
             ItemStack invItem = items[slot];
             if (isBlacklisted(invItem)) {
-                player.getInventory().setItem(slot, null);
-                removed = true;
-                logger.info("Removed blacklisted item " + invItem.getType() + " from player " + player.getName() +
-                            " at slot " + slot);
+                String message = "Blacklisted item detected: " + invItem.getType() + " from player " + player.getName() +
+                                " at slot " + slot;
+                logger.info(message);
+
                 logViolation(player.getName(), null, invItem.getType().toString(),
-                             "Player inventory slot " + slot, "N/A", "Blacklisted Item Removal");
+                            "Player inventory slot " + slot, "N/A", "Blacklisted Item Detection");
+
+                notifyAdmins(message);
+
+                if (removalEnabled) {
+                    player.getInventory().setItem(slot, null);
+                    removed = true;
+                    logger.info("Removed blacklisted item " + invItem.getType() + " from player " + player.getName());
+                }
             }
         }
 
         if (removed && NoDupePlugin.getInstance().getConfig().getBoolean("notify-player", false)) {
             player.sendMessage(ChatColor.RED + "Blacklisted items have been removed from your inventory.");
+        } else if (!removalEnabled && NoDupePlugin.getInstance().getConfig().getBoolean("notify-player", false)) {
+            player.sendMessage(ChatColor.YELLOW + "Warning: Blacklisted items detected in your inventory.");
         }
     }
 
@@ -282,12 +332,8 @@ public class InventoryListener implements Listener {
                 " with ID: " + id + " (" + itemType.toString() + ") at " + location1 + " and " + location2;
         logger.warning(message);
 
-        // Notify online administrators
-        for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
-            if (onlinePlayer.hasPermission("nodupe.notify")) {
-                onlinePlayer.sendMessage(ChatColor.YELLOW + "[NoDupe] " + ChatColor.RED + message);
-            }
-        }
+        // Notify admins who have notifications enabled
+        notifyAdmins(message);
 
         // Notify the player
         if (NoDupePlugin.getInstance().getConfig().getBoolean("notify-player", false))
@@ -337,13 +383,14 @@ public class InventoryListener implements Listener {
         if (blacklistedMetadata.containsKey(itemType)) {
             ItemMeta meta = item.getItemMeta();
             if (meta != null) {
-                String displayName = meta.hasDisplayName() ? ChatColor.stripColor(meta.getDisplayName()) : "";
+                String displayName = meta.hasDisplayName() ? ChatColor.stripColor(meta.getDisplayName()).toLowerCase() : "";
                 List<String> lore = meta.hasLore() ? meta.getLore() : null;
 
                 Object metadataObj = blacklistedMetadata.get(itemType);
                 if (metadataObj instanceof List<?>) {
                     for (String bannedName : (List<String>) metadataObj) {
-                        if (displayName.equalsIgnoreCase(bannedName) || (lore != null && lore.contains(bannedName))) {
+                        String bannedLower = bannedName.toLowerCase();
+                        if (displayName.contains(bannedLower) || (lore != null && lore.stream().anyMatch(l -> ChatColor.stripColor(l).toLowerCase().contains(bannedLower)))) {
                             return true;
                         }
                     }
