@@ -15,6 +15,8 @@ import java.util.Set;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.block.BlockState;
+import org.bukkit.block.CreatureSpawner;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -24,6 +26,7 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.BlockStateMeta;
 import org.bukkit.inventory.meta.ItemMeta; // For older versions
 
 public class InventoryListener implements Listener {
@@ -34,6 +37,7 @@ public class InventoryListener implements Listener {
     );
     private final Set<String> blacklistedItems = new HashSet<>(NoDupePlugin.getInstance().getConfig().getStringList("blacklisted-items"));
     private final Map<String, Object> blacklistedMetadata = NoDupePlugin.getInstance().getConfig().getConfigurationSection("blacklisted-metadata").getValues(false);
+    private final Set<String> bannedSpawnerEntities = new HashSet<>(NoDupePlugin.getInstance().getConfig().getStringList("banned-spawner-entities"));
     private static final File dataFolder = NoDupePlugin.getInstance().getDataFolder();
     private static final File violationLogFile = new File(dataFolder, "violations.log");
 
@@ -69,26 +73,26 @@ public class InventoryListener implements Listener {
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
         Player player = (Player) event.getWhoClicked();
-        ItemStack clickedItem = event.getCurrentItem();
-        ItemStack cursorItem = event.getCursor();
+        ItemStack movedItem = event.getCursor() != null && !event.getCursor().getType().isAir() ? event.getCursor() : event.getCurrentItem();
  
         logger.debug("Player " + player.getName() + " clicked inventory slot " + event.getSlot());
  
         // If the cursor item (item being placed) is blacklisted, remove it
-        if (cursorItem != null && isBlacklisted(cursorItem)) {
+        if (movedItem != null && !movedItem.getType().isAir() && isBlacklisted(movedItem)) {
             event.setCursor(null);
-            logger.warning("Removed blacklisted item " + cursorItem.getType() + " from player " + player.getName() +
+            logger.warning("Detected blacklisted item " + movedItem.getType() + " from player " + player.getName() +
                         " while attempting to move it.");
-            logViolation(player.getName(), null, cursorItem.getType().toString(),
+            logViolation(player.getName(), null, movedItem.getType().toString(),
                          "Cursor (moving item)", "N/A", "Blacklisted Item Removal");
+            notifyAdmins("Blacklisted item " + movedItem.getType() + " detected on "+ player.getName() +" during inventory click.");
             if (NoDupePlugin.getInstance().getConfig().getBoolean("notify-player", false))
                 player.sendMessage(ChatColor.RED + "Blacklisted items have been removed from your inventory.");
             event.setCancelled(true);
             return;
         }
  
-        // Process the clicked item
-        processItem(clickedItem, player, "Clicked Item");
+        // Process the moved item for further validation
+        processItem(movedItem, player, "Moved Item");
 
         // Schedule duplicate check
         Bukkit.getScheduler().runTaskLater(NoDupePlugin.getInstance(), () -> {
@@ -116,7 +120,7 @@ public class InventoryListener implements Listener {
         if (removalEnabled) {
             event.setCancelled(true);
             itemEntity.remove();
-            logger.info("Removed blacklisted item " + itemStack.getType() + " from ground before pickup by " + player.getName());
+            logger.info("Detected blacklisted item " + itemStack.getType() + " from ground before pickup by " + player.getName());
         }
         
         if (NoDupePlugin.getInstance().getConfig().getBoolean("notify-player", false)) {
@@ -380,6 +384,21 @@ public class InventoryListener implements Listener {
         String itemType = item.getType().toString();
         if (blacklistedItems.contains(itemType)) return true;
 
+        if (item.getType() == Material.SPAWNER && item.hasItemMeta()) {
+            if (item.getItemMeta() instanceof BlockStateMeta meta) {
+                BlockState state = meta.getBlockState();
+                if (state instanceof CreatureSpawner spawner) {
+                    String entityType = spawner.getSpawnedType() == null ? "none" : spawner.getSpawnedType().toString();
+                    logger.debug("Spawner entity type: " + entityType);
+                    if (bannedSpawnerEntities.contains(entityType)) {
+                        logger.info("<See below message> Blacklisted spawner detected: " + entityType);
+                        notifyAdmins("<See below message> Blacklisted spawner detected: " + entityType);
+                        return true;
+                    }
+                }
+            }
+        }
+
         if (blacklistedMetadata.containsKey(itemType)) {
             ItemMeta meta = item.getItemMeta();
             if (meta != null) {
@@ -391,6 +410,9 @@ public class InventoryListener implements Listener {
                     for (String bannedName : (List<String>) metadataObj) {
                         String bannedLower = bannedName.toLowerCase();
                         if (displayName.contains(bannedLower) || (lore != null && lore.stream().anyMatch(l -> ChatColor.stripColor(l).toLowerCase().contains(bannedLower)))) {
+                            logger.info("Blacklisted item removed due to display name: '" + displayName + "'");
+                            logViolation("<See below message>", null, displayName, "N/A", "N/A", "Blacklisted Item Removal Metadata");
+                            notifyAdmins("<See below message> Blacklisted item removed due to display name: '" + displayName + "'");
                             return true;
                         }
                     }

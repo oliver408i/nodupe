@@ -40,11 +40,14 @@ remove-blacklisted-items: true
 # List of blacklisted items that should be automatically removed from player inventories
 blacklisted-items:
   - BEDROCK
-  - COMMAND
+  - COMMAND_BLOCK
   - COMMAND_BLOCK_MINECART
   - STRUCTURE_BLOCK
   - BARRIER
 
 blacklisted-metadata:
-  MOB_SPAWNER:
+  SPAWNER:
     - "ender dragon spawner"
+
+banned-spawner-entities:
+  - ENDER_DRAGON
